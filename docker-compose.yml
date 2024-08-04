@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  mongodb:
+    image: mongo:4.4
+    ports:
+      - "27017:27017"
+    networks:
+      - mynetwork
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - mynetwork
+
+  redis:
+    image: redis:6.0
+    ports:
+      - "6379:6379"
+    networks:
+      - mynetwork
+
+networks:
+  mynetwork:
+    driver: bridge

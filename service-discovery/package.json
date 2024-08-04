@@ -1,0 +1,12 @@
+{
+  "name": "service-discovery",
+  "version": "1.0.0",
+  "description": "Service Discovery with Consul",
+  "main": "index.js",
+  "scripts": {
+    "start": "consul agent -dev"
+  },
+  "dependencies": {},
+  "author": "Your Name",
+  "license": "ISC"
+}

@@ -1,0 +1,12 @@
+{
+  "name": "logging",
+  "version": "1.0.0",
+  "description": "Centralized logging with Fluentd",
+  "main": "index.js",
+  "scripts": {
+    "start": "fluentd -c /fluentd/etc/fluent.conf -p /fluentd/plugins"
+  },
+  "dependencies": {},
+  "author": "Your Name",
+  "license": "ISC"
+}
