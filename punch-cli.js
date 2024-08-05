@@ -23,39 +23,38 @@ if (fs.existsSync(configPath)) {
 
 const createPackageJson = async (servicePath, serviceName, author, license) => {
   const packageJson = `
-  {
-    "name": "${serviceName}",
-    "version": "1.0.0",
-    "description": "${serviceName} service",
-    "main": "index.js",
-    "scripts": {
-      "start": "node index.js",
-      "dev": "nodemon index.js"
-    },
-    "dependencies": {
-      "express": "^4.17.1",
-      "mongoose": "^5.10.7",
-      "amqplib": "^0.5.6",
-      "redis": "^4.0.1",
-      "dotenv": "^8.2.0",
-      "helmet": "^4.6.0",
-      "csurf": "^1.11.0",
-      "xss-clean": "^0.1.1",
-      "cookie-parser": "^1.4.5",
-      "joi": "^17.3.0",
-      "express-validator": "^6.10.0",
-      "express-rate-limit": "^5.1.3",
-      "cors": "^2.8.5",
-      "jsonwebtoken": "^8.5.1"
-    },
-    "devDependencies": {
-      "nodemon": "^2.0.4"
-    },
-    "author": "${author}",
-    "license": "${license}"
-  }
+{
+  "name": "${serviceName}",
+  "version": "1.0.0",
+  "description": "${serviceName} service",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "mongoose": "^5.10.7",
+    "amqplib": "^0.5.6",
+    "redis": "^4.0.1",
+    "dotenv": "^8.2.0",
+    "helmet": "^4.6.0",
+    "csurf": "^1.11.0",
+    "xss-clean": "^0.1.1",
+    "cookie-parser": "^1.4.5",
+    "joi": "^17.3.0",
+    "express-validator": "^6.10.0",
+    "express-rate-limit": "^5.1.3",
+    "cors": "^2.8.5",
+    "jsonwebtoken": "^8.5.1"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.4"
+  },
+  "author": "${author}",
+  "license": "${license}"
+}
   `;
-
   await fs.writeFile(path.join(servicePath, "package.json"), packageJson);
 };
 
@@ -68,7 +67,7 @@ const createReduxFiles = async (servicePath, serviceName) => {
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-export const fetch${serviceName}ById = createAsyncThunk('${serviceName}/fetchById', async (id) => {
+export const get${serviceName}ById = createAsyncThunk('${serviceName}/getById', async (id) => {
   const response = await axios.get('/${serviceName}/${id}');
   return response.data;
 });
@@ -103,14 +102,14 @@ const ${serviceName}Slice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetch${serviceName}ById.pending, (state) => {
+      .addCase(get${serviceName}ById.pending, (state) => {
         state.loading = true;
       })
-      .addCase(fetch${serviceName}ById.fulfilled, (state, action) => {
+      .addCase(get${serviceName}ById.fulfilled, (state, action) => {
         state.loading = false;
         state.${serviceName} = action.payload;
       })
-      .addCase(fetch${serviceName}ById.rejected, (state, action) => {
+      .addCase(get${serviceName}ById.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message;
       })
@@ -185,6 +184,190 @@ export const select${serviceName}Error = (state) => state.${serviceName}.error;
   );
 };
 
+const replaceInFile = async (filePath, replacements) => {
+  let content = await fs.readFile(filePath, "utf-8");
+  for (const [searchValue, replaceValue] of replacements) {
+    content = content.split(searchValue).join(replaceValue);
+  }
+  await fs.writeFile(filePath, content);
+};
+
+const createService = async (name, serviceName, options) => {
+  const newServicePath = path.join(__dirname, "microservices", serviceName);
+  const port = config.basePort + Object.keys(config.services).length;
+  config.services[serviceName] = port;
+
+  await fs.copy(templatePath, newServicePath);
+
+  const filesToRename = [
+    "models/serviceModel.js",
+    "handlers/serviceHandler.js",
+    "controllers/serviceController.js",
+    "routes/serviceRoutes.js",
+  ];
+
+  for (const file of filesToRename) {
+    const newFilePath = path.join(
+      newServicePath,
+      file.replace("service", serviceName)
+    );
+    await fs.move(path.join(newServicePath, file), newFilePath);
+  }
+
+  const replacements = [
+    [/service-template/g, serviceName],
+    [/service/g, serviceName],
+    [3000, port],
+  ];
+
+  await replaceInFile(path.join(newServicePath, "index.js"), replacements);
+  await replaceInFile(
+    path.join(newServicePath, "controllers", `${serviceName}Controller.js`),
+    replacements
+  );
+  await replaceInFile(
+    path.join(newServicePath, "handlers", `${serviceName}Handler.js`),
+    replacements
+  );
+  await replaceInFile(
+    path.join(newServicePath, "routes", `${serviceName}Routes.js`),
+    replacements
+  );
+
+  const dockerfileContent = `
+FROM node:14
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+# Copiar common-utils desde el host
+COPY ../../common-utils /app/common-utils
+
+EXPOSE ${port}
+CMD ["node", "index.js"]
+  `;
+  await fs.writeFile(
+    path.join(newServicePath, "Dockerfile"),
+    dockerfileContent
+  );
+
+  const k8sDeploymentContent = `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${serviceName}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ${serviceName}
+  template:
+    metadata:
+      labels:
+        app: ${serviceName}
+    spec:
+      containers:
+        - name: ${serviceName}
+          image: ${serviceName}:latest
+          ports:
+            - containerPort: ${port}
+          env:
+            - name: MONGO_URL
+              value: mongodb://mongo/${serviceName}
+  `;
+  await fs.writeFile(
+    path.join(newServicePath, "k8s-deployment.yaml"),
+    k8sDeploymentContent
+  );
+
+  const k8sServiceContent = `
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${serviceName}
+spec:
+  selector:
+    app: ${serviceName}
+  ports:
+    - protocol: TCP
+      port: ${port}
+      targetPort: ${port}
+  type: ClusterIP
+  `;
+  await fs.writeFile(
+    path.join(newServicePath, "k8s-service.yaml"),
+    k8sServiceContent
+  );
+
+  await createPackageJson(
+    newServicePath,
+    serviceName,
+    options.author,
+    options.license
+  );
+
+  const envContent = `
+PORT=${port}
+MONGO_URL=mongodb://mongo/${serviceName}
+REDIS_URL=redis://localhost:6379
+RABBITMQ_URL=amqp://localhost:5672
+JWT_SECRET=supersecret
+  `;
+  await fs.writeFile(path.join(newServicePath, ".env"), envContent);
+
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+
+  console.log(
+    `Service ${serviceName} created successfully in ${newServicePath} with port ${port}`
+  );
+
+  if (options.redux) {
+    await createReduxFiles(newServicePath, serviceName);
+    console.log(`Redux files for ${serviceName} created successfully.`);
+  }
+
+  if (options.deploy) {
+    console.log(`Building Docker image for ${serviceName}...`);
+    execSync(
+      `docker build -t ${serviceName}:latest -f ${newServicePath}/Dockerfile .`,
+      { stdio: "inherit" }
+    );
+
+    console.log(`Adding ${serviceName} to docker-compose.yml...`);
+    const composeContent = `
+  ${serviceName}:
+    build:
+      context: ./microservices/${serviceName}
+    ports:
+      - "${port}:${port}"
+    depends_on:
+      - mongodb
+      - rabbitmq
+      - redis
+    environment:
+      - MONGO_URL=mongodb://mongodb:27017/${serviceName}
+    `;
+    fs.appendFileSync("docker-compose.yml", composeContent);
+
+    console.log(`Running Docker Compose...`);
+    execSync("docker-compose up -d", { stdio: "inherit" });
+
+    console.log(`Deploying ${serviceName} to Kubernetes...`);
+    execSync(`kubectl apply -f ${newServicePath}/k8s-deployment.yaml`, {
+      stdio: "inherit",
+    });
+    execSync(`kubectl apply -f ${newServicePath}/k8s-service.yaml`, {
+      stdio: "inherit",
+    });
+
+    console.log(`Service ${serviceName} created and deployed successfully.`);
+  }
+};
+
 program
   .version("1.0.0")
   .description(
@@ -203,222 +386,37 @@ program
   .option("-r, --redux", "Create Redux files for the service")
   .option("-a, --author <author>", "Specify the author name")
   .option("-l, --license <license>", "Specify the license type")
+  .option(
+    "-s, --services <services>",
+    "Comma-separated list of services to create",
+    (val) => val.split(",")
+  )
   .action(async (name, options) => {
-    const newServicePath = path.join(__dirname, "services", name);
-    const excludeComponents = options.exclude || [];
+    const services = options.services || [];
     const author = options.author || "Unknown";
     const license = options.license || "ISC";
 
     try {
-      // Assign a unique port
-      const port = config.basePort + Object.keys(config.services).length;
-      config.services[name] = port;
-
-      // Copy the microservice template to the new directory
-      await fs.copy(templatePath, newServicePath);
-
-      // Rename files and adjust content
-      const filesToRename = [
-        "models/serviceModel.js",
-        "services/serviceService.js",
-        "controllers/serviceController.js",
-        "routes/serviceRoutes.js",
-      ];
-
-      for (const file of filesToRename) {
-        const newFilePath = path.join(
-          newServicePath,
-          file.replace("service", name)
-        );
-        await fs.move(path.join(newServicePath, file), newFilePath);
-      }
-
-      // Update content of index.js and other files
-      const replaceInFile = async (filePath, replacements) => {
-        let content = await fs.readFile(filePath, "utf-8");
-        for (const [searchValue, replaceValue] of replacements) {
-          content = content.split(searchValue).join(replaceValue);
-        }
-        await fs.writeFile(filePath, content);
-      };
-
-      const replacements = [
-        [/service-template/g, name],
-        [/service/g, name],
-        [3000, port],
-      ];
-
-      await replaceInFile(path.join(newServicePath, "index.js"), replacements);
-      await replaceInFile(
-        path.join(newServicePath, "controllers", `${name}Controller.js`),
-        replacements
-      );
-      await replaceInFile(
-        path.join(newServicePath, "services", `${name}Service.js`),
-        replacements
-      );
-      await replaceInFile(
-        path.join(newServicePath, "routes", `${name}Routes.js`),
-        replacements
-      );
-
-      // Create Dockerfile
-      const dockerfileContent = `
-FROM node:14
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm install
-
-COPY . .
-
-# Copy common-utils
-COPY ../../common-utils /app/common-utils
-
-EXPOSE ${port}
-CMD ["node", "index.js"]
-      `;
-      await fs.writeFile(
-        path.join(newServicePath, "Dockerfile"),
-        dockerfileContent
-      );
-
-      // Create Kubernetes files
-      const k8sDeploymentContent = `
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: ${name}
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: ${name}
-  template:
-    metadata:
-      labels:
-        app: ${name}
-    spec:
-      containers:
-        - name: ${name}
-          image: ${name}:latest
-          ports:
-            - containerPort: ${port}
-          env:
-            - name: MONGO_URL
-              value: mongodb://mongo/${name}
-      `;
-      await fs.writeFile(
-        path.join(newServicePath, "k8s-deployment.yaml"),
-        k8sDeploymentContent
-      );
-
-      const k8sServiceContent = `
-apiVersion: v1
-kind: Service
-metadata:
-  name: ${name}
-spec:
-  selector:
-    app: ${name}
-  ports:
-    - protocol: TCP
-      port: ${port}
-      targetPort: ${port}
-  type: ClusterIP
-      `;
-      await fs.writeFile(
-        path.join(newServicePath, "k8s-service.yaml"),
-        k8sServiceContent
-      );
-
-      // Create package.json
-      await createPackageJson(newServicePath, name, author, license);
-
-      // Create .env file
-      const envContent = `
-PORT=${port}
-MONGO_URL=mongodb://mongo/${name}
-REDIS_URL=redis://localhost:6379
-RABBITMQ_URL=amqp://localhost:5672
-JWT_SECRET=supersecret
-      `;
-      await fs.writeFile(path.join(newServicePath, ".env"), envContent);
-
-      // Save the updated configuration
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-
-      console.log(
-        `Microservice ${name} created successfully in ${newServicePath} with port ${port}`
-      );
-
-      if (options.redux) {
-        await createReduxFiles(newServicePath, name);
-        console.log(`Redux files for ${name} created successfully.`);
-      }
-
-      if (options.deploy) {
-        // Build the Docker image for the new microservice
-        console.log(`Building Docker image for ${name}...`);
-        execSync(
-          `docker build -t ${name}:latest -f ${newServicePath}/Dockerfile .`,
-          { stdio: "inherit" }
-        );
-
-        // Update docker-compose.yml to include the new service
-        console.log(`Adding ${name} to docker-compose.yml...`);
-        const composeContent = `
-  ${name}:
-    build:
-      context: ./services/${name}
-    ports:
-      - "${port}:${port}"
-    depends_on:
-      - mongodb
-      - rabbitmq
-      - redis
-    environment:
-      - MONGO_URL=mongodb://mongodb:27017/${name}
-        `;
-        fs.appendFileSync("docker-compose.yml", composeContent);
-
-        // Run Docker Compose
-        console.log(`Running Docker Compose...`);
-        execSync("docker-compose up -d", { stdio: "inherit" });
-
-        // Deploy to Kubernetes
-        console.log(`Deploying ${name} to Kubernetes...`);
-        execSync(`kubectl apply -f ${newServicePath}/k8s-deployment.yaml`, {
-          stdio: "inherit",
-        });
-        execSync(`kubectl apply -f ${newServicePath}/k8s-service.yaml`, {
-          stdio: "inherit",
-        });
-
-        console.log(`Microservice ${name} created and deployed successfully.`);
+      for (const service of services) {
+        await createService(name, service, options);
       }
 
       // Deploy additional components
       for (const component of components) {
-        if (!excludeComponents.includes(component)) {
+        if (!options.exclude || !options.exclude.includes(component)) {
           console.log(`Creating and deploying component ${component}...`);
           const componentPath = path.join(__dirname, component);
 
-          // Copy the component template to the new directory
           await fs.copy(component, componentPath);
 
-          // Create package.json
           await createPackageJson(componentPath, component, author, license);
 
-          // Build the Docker image for the component
           console.log(`Building Docker image for ${component}...`);
           execSync(
             `docker build -t ${component}:latest -f ${componentPath}/Dockerfile .`,
             { stdio: "inherit" }
           );
 
-          // Add the component to docker-compose.yml
           console.log(`Adding ${component} to docker-compose.yml...`);
           let componentComposeContent;
           if (component === "gateway") {
@@ -446,11 +444,9 @@ JWT_SECRET=supersecret
           }
           fs.appendFileSync("docker-compose.yml", componentComposeContent);
 
-          // Run Docker Compose
           console.log(`Running Docker Compose...`);
           execSync("docker-compose up -d", { stdio: "inherit" });
 
-          // Save the updated configuration
           config.components[component] = true;
           fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 
@@ -469,202 +465,19 @@ program
   .description("Create a new service and add it to the existing application")
   .option("-d, --deploy", "Build and deploy the service")
   .option("-r, --redux", "Create Redux files for the service")
+  .option("-a, --author <author>", "Specify the author name")
+  .option("-l, --license <license>", "Specify the license type")
+  .option(
+    "-s, --services <services>",
+    "Comma-separated list of services to create",
+    (val) => val.split(",")
+  )
   .action(async (name, options) => {
-    const newServicePath = path.join(__dirname, "services", name);
+    const services = options.services || [];
 
     try {
-      // Assign a unique port
-      const port = config.basePort + Object.keys(config.services).length;
-      config.services[name] = port;
-
-      // Copy the microservice template to the new directory
-      await fs.copy(templatePath, newServicePath);
-
-      // Rename files and adjust content
-      const filesToRename = [
-        "models/serviceModel.js",
-        "services/serviceService.js",
-        "controllers/serviceController.js",
-        "routes/serviceRoutes.js",
-      ];
-
-      for (const file of filesToRename) {
-        const newFilePath = path.join(
-          newServicePath,
-          file.replace("service", name)
-        );
-        await fs.move(path.join(newServicePath, file), newFilePath);
-      }
-
-      // Update content of index.js and other files
-      const replaceInFile = async (filePath, replacements) => {
-        let content = await fs.readFile(filePath, "utf-8");
-        for (const [searchValue, replaceValue] of replacements) {
-          content = content.split(searchValue).join(replaceValue);
-        }
-        await fs.writeFile(filePath, content);
-      };
-
-      const replacements = [
-        [/service-template/g, name],
-        [/service/g, name],
-        [3000, port],
-      ];
-
-      await replaceInFile(path.join(newServicePath, "index.js"), replacements);
-      await replaceInFile(
-        path.join(newServicePath, "controllers", `${name}Controller.js`),
-        replacements
-      );
-      await replaceInFile(
-        path.join(newServicePath, "services", `${name}Service.js`),
-        replacements
-      );
-      await replaceInFile(
-        path.join(newServicePath, "routes", `${name}Routes.js`),
-        replacements
-      );
-
-      // Create Dockerfile
-      const dockerfileContent = `
-FROM node:14
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm install
-
-COPY . .
-
-# Copy common-utils
-COPY ../../common-utils /app/common-utils
-
-EXPOSE ${port}
-CMD ["node", "index.js"]
-      `;
-      await fs.writeFile(
-        path.join(newServicePath, "Dockerfile"),
-        dockerfileContent
-      );
-
-      // Create Kubernetes files
-      const k8sDeploymentContent = `
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: ${name}
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: ${name}
-  template:
-    metadata:
-      labels:
-        app: ${name}
-    spec:
-      containers:
-        - name: ${name}
-          image: ${name}:latest
-          ports:
-            - containerPort: ${port}
-          env:
-            - name: MONGO_URL
-              value: mongodb://mongo/${name}
-      `;
-      await fs.writeFile(
-        path.join(newServicePath, "k8s-deployment.yaml"),
-        k8sDeploymentContent
-      );
-
-      const k8sServiceContent = `
-apiVersion: v1
-kind: Service
-metadata:
-  name: ${name}
-spec:
-  selector:
-    app: ${name}
-  ports:
-    - protocol: TCP
-      port: ${port}
-      targetPort: ${port}
-  type: ClusterIP
-      `;
-      await fs.writeFile(
-        path.join(newServicePath, "k8s-service.yaml"),
-        k8sServiceContent
-      );
-
-      // Create package.json
-      await createPackageJson(
-        newServicePath,
-        name,
-        config.author,
-        config.license
-      );
-
-      // Create .env file
-      const envContent = `
-PORT=${port}
-MONGO_URL=mongodb://mongo/${name}
-REDIS_URL=redis://localhost:6379
-RABBITMQ_URL=amqp://localhost:5672
-JWT_SECRET=supersecret
-      `;
-      await fs.writeFile(path.join(newServicePath, ".env"), envContent);
-
-      // Save the updated configuration
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-
-      console.log(
-        `Service ${name} created successfully in ${newServicePath} with port ${port}`
-      );
-
-      if (options.redux) {
-        await createReduxFiles(newServicePath, name);
-        console.log(`Redux files for ${name} created successfully.`);
-      }
-
-      if (options.deploy) {
-        // Build the Docker image for the new service
-        console.log(`Building Docker image for ${name}...`);
-        execSync(
-          `docker build -t ${name}:latest -f ${newServicePath}/Dockerfile .`,
-          { stdio: "inherit" }
-        );
-
-        // Update docker-compose.yml to include the new service
-        console.log(`Adding ${name} to docker-compose.yml...`);
-        const composeContent = `
-  ${name}:
-    build:
-      context: ./services/${name}
-    ports:
-      - "${port}:${port}"
-    depends_on:
-      - mongodb
-      - rabbitmq
-      - redis
-    environment:
-      - MONGO_URL=mongodb://mongodb:27017/${name}
-        `;
-        fs.appendFileSync("docker-compose.yml", composeContent);
-
-        // Run Docker Compose
-        console.log(`Running Docker Compose...`);
-        execSync("docker-compose up -d", { stdio: "inherit" });
-
-        // Deploy to Kubernetes
-        console.log(`Deploying ${name} to Kubernetes...`);
-        execSync(`kubectl apply -f ${newServicePath}/k8s-deployment.yaml`, {
-          stdio: "inherit",
-        });
-        execSync(`kubectl apply -f ${newServicePath}/k8s-service.yaml`, {
-          stdio: "inherit",
-        });
-
-        console.log(`Service ${name} created and deployed successfully.`);
+      for (const service of services) {
+        await createService(name, service, options);
       }
     } catch (error) {
       console.error("Error creating the service:", error);
@@ -716,10 +529,11 @@ program
     if (!isComponent) {
       console.log(`Removing Kubernetes resources for ${name}...`);
       try {
-        execSync(`kubectl delete -f services/${name}/k8s-deployment.yaml`, {
-          stdio: "inherit",
-        });
-        execSync(`kubectl delete -f services/${name}/k8s-service.yaml`, {
+        execSync(
+          `kubectl delete -f microservices/${name}/k8s-deployment.yaml`,
+          { stdio: "inherit" }
+        );
+        execSync(`kubectl delete -f microservices/${name}/k8s-service.yaml`, {
           stdio: "inherit",
         });
       } catch (error) {
@@ -751,7 +565,7 @@ program
     // Remove service or component directory
     if (!isComponent) {
       console.log(`Removing directory for ${name}...`);
-      fs.removeSync(path.join(__dirname, "services", name));
+      fs.removeSync(path.join(__dirname, "microservices", name));
       delete config.services[name];
     } else {
       console.log(`Removing directory for ${name}...`);
@@ -759,7 +573,6 @@ program
       delete config.components[name];
     }
 
-    // Save the updated configuration
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 
     console.log(
