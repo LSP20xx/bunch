@@ -1,7 +1,7 @@
-const serviceService = require("../services/serviceService");
-const { sendMessage } = require("../../common-utils/rabbitmq");
+const serviceHandler = require("../handlers/serviceHandler");
+const { sendMessage } = require("../common-utils/rabbitmq");
 const Joi = require("joi");
-const { sanitizeInput } = require("../../common-utils/sanitizeInput");
+const { sanitizeInput } = require("../common-utils/sanitizeInput");
 
 exports.createService = async (req, res) => {
   const schema = Joi.object({
@@ -17,7 +17,7 @@ exports.createService = async (req, res) => {
   const sanitizedBody = sanitizeInput(req.body, ["name", "value"]);
 
   try {
-    const service = await serviceService.createService(sanitizedBody);
+    const service = await serviceHandler.createService(sanitizedBody);
     await sendMessage("service_created", {
       id: service._id,
       name: service.name,
@@ -30,7 +30,7 @@ exports.createService = async (req, res) => {
 
 exports.getServiceById = async (req, res) => {
   try {
-    const service = await serviceService.getServiceById(req.params.id);
+    const service = await serviceHandler.getServiceById(req.params.id);
     res.status(200).json(service);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -39,7 +39,7 @@ exports.getServiceById = async (req, res) => {
 
 exports.deleteService = async (req, res) => {
   try {
-    await serviceService.deleteService(req.params.id);
+    await serviceHandler.deleteService(req.params.id);
     res.status(204).json({ message: "Service deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -60,7 +60,7 @@ exports.updateService = async (req, res) => {
   const sanitizedBody = sanitizeInput(req.body, ["name", "value"]);
 
   try {
-    const service = await serviceService.updateService(
+    const service = await serviceHandler.updateService(
       req.params.id,
       sanitizedBody
     );
@@ -72,7 +72,7 @@ exports.updateService = async (req, res) => {
 
 exports.listServices = async (req, res) => {
   try {
-    const services = await serviceService.listServices();
+    const services = await serviceHandler.listServices();
     res.status(200).json(services);
   } catch (error) {
     res.status(500).json({ message: error.message });

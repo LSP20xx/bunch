@@ -8,7 +8,7 @@ RUN npm install
 COPY . .
 
 # Copiar common-utils desde el host
-COPY ../../common-utils /app/common-utils
+COPY ../common-utils /app/microservices/common-utils
 
 EXPOSE 3000
 CMD ["node", "index.js"]

@@ -1,5 +1,5 @@
 const Service = require("../models/serviceModel");
-const redisClient = require("../../common-utils/redisClient");
+const redisClient = require("../common-utils/redisClient");
 
 exports.createService = async (data) => {
   const service = new Service(data);

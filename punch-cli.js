@@ -17,7 +17,10 @@ const configPath = path.join(__dirname, "config.json");
 let config = { basePort: 3000, services: {}, components: {} };
 
 if (fs.existsSync(configPath)) {
-  config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+  const configFileContent = fs.readFileSync(configPath, "utf-8").trim();
+  if (configFileContent) {
+    config = JSON.parse(configFileContent);
+  }
 } else {
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 }
@@ -210,6 +213,20 @@ const addToComposeFile = (serviceName, port, composeFilePath) => {
   }
 };
 
+const createConfigJson = async (gatewayPath, routes) => {
+  const configContent = {
+    routes: routes.map((route) => ({
+      path: `/${route}`,
+      target: `http://${route}:${config.services[route]}`,
+    })),
+  };
+
+  await fs.writeFile(
+    path.join(gatewayPath, "config.json"),
+    JSON.stringify(configContent, null, 2)
+  );
+};
+
 const createService = async (name, serviceName, options) => {
   const newServicePath = path.join(__dirname, "microservices", serviceName);
   const port = config.basePort + Object.keys(config.services).length;
@@ -258,14 +275,21 @@ FROM node:14
 WORKDIR /app
 
 COPY package*.json ./
+
 RUN npm install
 
-COPY . .
+COPY common-utils /app/microservices/${serviceName}/common-utils
 
-# Copiar common-utils desde el host
-COPY ../../common-utils /app/common-utils
+WORKDIR /app/microservices/${serviceName}
+
+COPY ./microservices/${serviceName}/package*.json ./
+
+RUN npm install
+
+COPY ./microservices/${serviceName} .
 
 EXPOSE ${port}
+
 CMD ["node", "index.js"]
   `;
   await fs.writeFile(
@@ -377,6 +401,11 @@ JWT_SECRET=supersecret
     );
 
     console.log(`Service ${serviceName} created and deployed successfully.`);
+  }
+
+  if (serviceName === "gateway") {
+    const gatewayPath = path.join(__dirname, "components", "gateway");
+    await createConfigJson(gatewayPath, Object.keys(config.services));
   }
 };
 
