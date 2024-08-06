@@ -424,11 +424,11 @@ program
           await createPackageJson(componentPath, component, author, license);
 
           console.log(`Building Docker image for ${component}...`);
+
           execSync(
-            `docker build -t ${component}:latest -f ${componentPath}/Dockerfile .`,
+            `docker build -t ${component}:latest -f ${componentPath}/Dockerfile ${component}`,
             { stdio: "inherit" }
           );
-
           console.log(`Adding ${component} to docker network...`);
           const composeFilePath = path.join(__dirname, "docker-compose.yml");
           addToComposeFile(component, null, composeFilePath);
