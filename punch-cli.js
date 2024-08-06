@@ -1,6 +1,7 @@
 const { program } = require("commander");
 const fs = require("fs-extra");
 const path = require("path");
+const ejs = require("ejs");
 const { execSync } = require("child_process");
 
 const templatePath = path.join(__dirname, "service-template");
@@ -67,120 +68,120 @@ const createReduxFiles = async (servicePath, serviceName) => {
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-export const get${serviceName}ById = createAsyncThunk('${serviceName}/getById', async (id) => {
-  const response = await axios.get('/${serviceName}/${id}');
+export const get<%= serviceName %>ById = createAsyncThunk('<%= serviceName %>/getById', async (id) => {
+  const response = await axios.get('/<%= serviceName %>/:id');
   return response.data;
 });
 
-export const create${serviceName} = createAsyncThunk('${serviceName}/create', async (${serviceName}Data) => {
-  const response = await axios.post('/${serviceName}', ${serviceName}Data);
+export const create<%= serviceName %> = createAsyncThunk('<%= serviceName %>/create', async (<%= serviceName %>Data) => {
+  const response = await axios.post('/<%= serviceName %>', <%= serviceName %>Data);
   return response.data;
 });
 
-export const update${serviceName} = createAsyncThunk('${serviceName}/update', async ({ id, ${serviceName}Data }) => {
-  const response = await axios.put('/${serviceName}/${id}', ${serviceName}Data);
+export const update<%= serviceName %> = createAsyncThunk('<%= serviceName %>/update', async ({ id, <%= serviceName %>Data }) => {
+  const response = await axios.put('/<%= serviceName %>/:id', <%= serviceName %>Data);
   return response.data;
 });
 
-export const delete${serviceName} = createAsyncThunk('${serviceName}/delete', async (id) => {
-  await axios.delete('/${serviceName}/${id}');
+export const delete<%= serviceName %> = createAsyncThunk('<%= serviceName %>/delete', async (id) => {
+  await axios.delete('/<%= serviceName %>/:id');
   return id;
 });
 
-export const list${serviceName}s = createAsyncThunk('${serviceName}/list', async () => {
-  const response = await axios.get('/${serviceName}');
+export const list<%= serviceName %>s = createAsyncThunk('<%= serviceName %>/list', async () => {
+  const response = await axios.get('/<%= serviceName %>');
   return response.data;
 });
 
-const ${serviceName}Slice = createSlice({
-  name: '${serviceName}',
+const <%= serviceName %>Slice = createSlice({
+  name: '<%= serviceName %>',
   initialState: {
-    ${serviceName}s: [],
-    ${serviceName}: null,
+    <%= serviceName %>s: [],
+    <%= serviceName %>: null,
     loading: false,
     error: null,
   },
   extraReducers: (builder) => {
     builder
-      .addCase(get${serviceName}ById.pending, (state) => {
+      .addCase(get<%= serviceName %>ById.pending, (state) => {
         state.loading = true;
       })
-      .addCase(get${serviceName}ById.fulfilled, (state, action) => {
+      .addCase(get<%= serviceName %>ById.fulfilled, (state, action) => {
         state.loading = false;
-        state.${serviceName} = action.payload;
+        state.<%= serviceName %> = action.payload;
       })
-      .addCase(get${serviceName}ById.rejected, (state, action) => {
+      .addCase(get<%= serviceName %>ById.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message;
       })
-      .addCase(create${serviceName}.pending, (state) => {
+      .addCase(create<%= serviceName %>.pending, (state) => {
         state.loading = true;
       })
-      .addCase(create${serviceName}.fulfilled, (state, action) => {
+      .addCase(create<%= serviceName %>.fulfilled, (state, action) => {
         state.loading = false;
-        state.${serviceName}s.push(action.payload);
+        state.<%= serviceName %>s.push(action.payload);
       })
-      .addCase(create${serviceName}.rejected, (state, action) => {
+      .addCase(create<%= serviceName %>.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message;
       })
-      .addCase(update${serviceName}.pending, (state) => {
+      .addCase(update<%= serviceName %>.pending, (state) => {
         state.loading = true;
       })
-      .addCase(update${serviceName}.fulfilled, (state, action) => {
+      .addCase(update<%= serviceName %>.fulfilled, (state, action) => {
         state.loading = false;
-        const index = state.${serviceName}s.findIndex(${serviceName} => ${serviceName}._id === action.payload._id);
+        const index = state.<%= serviceName %>s.findIndex(<%= serviceName %> => <%= serviceName %>._id === action.payload._id);
         if (index !== -1) {
-          state.${serviceName}s[index] = action.payload;
+          state.<%= serviceName %>s[index] = action.payload;
         }
       })
-      .addCase(update${serviceName}.rejected, (state, action) => {
+      .addCase(update<%= serviceName %>.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message;
       })
-      .addCase(delete${serviceName}.pending, (state) => {
+      .addCase(delete<%= serviceName %>.pending, (state) => {
         state.loading = true;
       })
-      .addCase(delete${serviceName}.fulfilled, (state, action) => {
+      .addCase(delete<%= serviceName %>.fulfilled, (state, action) => {
         state.loading = false;
-        state.${serviceName}s = state.${serviceName}s.filter(${serviceName} => ${serviceName}._id !== action.payload);
+        state.<%= serviceName %>s = state.<%= serviceName %>s.filter(<%= serviceName %> => <%= serviceName %>._id !== action.payload);
       })
-      .addCase(delete${serviceName}.rejected, (state, action) => {
+      .addCase(delete<%= serviceName %>.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message;
       })
-      .addCase(list${serviceName}s.pending, (state) => {
+      .addCase(list<%= serviceName %>s.pending, (state) => {
         state.loading = true;
       })
-      .addCase(list${serviceName}s.fulfilled, (state, action) => {
+      .addCase(list<%= serviceName %>s.fulfilled, (state, action) => {
         state.loading = false;
-        state.${serviceName}s = action.payload;
+        state.<%= serviceName %>s = action.payload;
       })
-      .addCase(list${serviceName}s.rejected, (state, action) => {
+      .addCase(list<%= serviceName %>s.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message;
       });
   },
 });
 
-export default ${serviceName}Slice.reducer;
+export default <%= serviceName %>Slice.reducer;
 `;
 
   const selectorContent = `
-export const select${serviceName}State = (state) => state.${serviceName};
-export const selectAll${serviceName}s = (state) => state.${serviceName}.${serviceName}s;
-export const select${serviceName}ById = (state, id) => state.${serviceName}.${serviceName}s.find(${serviceName} => ${serviceName}._id === id);
-export const select${serviceName}Loading = (state) => state.${serviceName}.loading;
-export const select${serviceName}Error = (state) => state.${serviceName}.error;
+export const select<%= serviceName %>State = (state) => state.<%= serviceName %>;
+export const selectAll<%= serviceName %>s = (state) => state.<%= serviceName %>.<%= serviceName %>s;
+export const select<%= serviceName %>ById = (state, id) => state.<%= serviceName %>.<%= serviceName %>s.find(<%= serviceName %> => <%= serviceName %>._id === id);
+export const select<%= serviceName %>Loading = (state) => state.<%= serviceName %>.loading;
+export const select<%= serviceName %>Error = (state) => state.<%= serviceName %>.error;
 `;
 
   await fs.writeFile(
     path.join(slicesPath, `${serviceName}Slice.js`),
-    sliceContent
+    ejs.render(sliceContent, { serviceName })
   );
   await fs.writeFile(
     path.join(selectorsPath, `${serviceName}Selectors.js`),
-    selectorContent
+    ejs.render(selectorContent, { serviceName })
   );
 };
 
@@ -190,6 +191,23 @@ const replaceInFile = async (filePath, replacements) => {
     content = content.split(searchValue).join(replaceValue);
   }
   await fs.writeFile(filePath, content);
+};
+
+const addToComposeFile = (serviceName, port, composeFilePath) => {
+  const composeFileContent = fs.readFileSync(composeFilePath, "utf-8");
+
+  if (!composeFileContent.includes(`  ${serviceName}:`)) {
+    const serviceCompose = port
+      ? `  ${serviceName}:\n    image: ${serviceName}:latest\n    ports:\n      - "${port}:${port}"\n    environment:\n      - MONGO_URL=mongodb://mongodb:27017/${serviceName}\n    networks:\n      - mynetwork\n`
+      : `  ${serviceName}:\n    image: ${serviceName}:latest\n    networks:\n      - mynetwork\n`;
+    const updatedComposeContent = composeFileContent.replace(
+      /services:/,
+      `services:\n${serviceCompose}`
+    );
+    fs.writeFileSync(composeFilePath, updatedComposeContent);
+  } else {
+    console.log(`Service ${serviceName} is already in docker-compose.yml.`);
+  }
 };
 
 const createService = async (name, serviceName, options) => {
@@ -337,32 +355,26 @@ JWT_SECRET=supersecret
       { stdio: "inherit" }
     );
 
-    console.log(`Adding ${serviceName} to docker-compose.yml...`);
-    const composeContent = `
-  ${serviceName}:
-    build:
-      context: ./microservices/${serviceName}
-    ports:
-      - "${port}:${port}"
-    depends_on:
-      - mongodb
-      - rabbitmq
-      - redis
-    environment:
-      - MONGO_URL=mongodb://mongodb:27017/${serviceName}
-    `;
-    fs.appendFileSync("docker-compose.yml", composeContent);
+    console.log(`Adding ${serviceName} to docker network...`);
+    const composeFilePath = path.join(__dirname, "docker-compose.yml");
+    addToComposeFile(serviceName, port, composeFilePath);
 
-    console.log(`Running Docker Compose...`);
-    execSync("docker-compose up -d", { stdio: "inherit" });
+    console.log(`Running Docker...`);
+    execSync("docker compose up -d", { stdio: "inherit" });
 
     console.log(`Deploying ${serviceName} to Kubernetes...`);
-    execSync(`kubectl apply -f ${newServicePath}/k8s-deployment.yaml`, {
-      stdio: "inherit",
-    });
-    execSync(`kubectl apply -f ${newServicePath}/k8s-service.yaml`, {
-      stdio: "inherit",
-    });
+    execSync(
+      `kubectl apply -f ${newServicePath}/k8s-deployment.yaml --validate=false`,
+      {
+        stdio: "inherit",
+      }
+    );
+    execSync(
+      `kubectl apply -f ${newServicePath}/k8s-service.yaml --validate=false`,
+      {
+        stdio: "inherit",
+      }
+    );
 
     console.log(`Service ${serviceName} created and deployed successfully.`);
   }
@@ -405,9 +417,9 @@ program
       for (const component of components) {
         if (!options.exclude || !options.exclude.includes(component)) {
           console.log(`Creating and deploying component ${component}...`);
-          const componentPath = path.join(__dirname, component);
+          const componentPath = path.join(__dirname, "components", component);
 
-          await fs.copy(component, componentPath);
+          await fs.copy(path.join(__dirname, component), componentPath);
 
           await createPackageJson(componentPath, component, author, license);
 
@@ -417,35 +429,12 @@ program
             { stdio: "inherit" }
           );
 
-          console.log(`Adding ${component} to docker-compose.yml...`);
-          let componentComposeContent;
-          if (component === "gateway") {
-            componentComposeContent = `
-  ${component}:
-    build:
-      context: ./${component}
-    ports:
-      - "8080:8080"
-    depends_on:
-      - mongodb
-      - rabbitmq
-      - redis
-    networks:
-      - mynetwork
-            `;
-          } else {
-            componentComposeContent = `
-  ${component}:
-    build:
-      context: ./${component}
-    networks:
-      - mynetwork
-            `;
-          }
-          fs.appendFileSync("docker-compose.yml", componentComposeContent);
+          console.log(`Adding ${component} to docker network...`);
+          const composeFilePath = path.join(__dirname, "docker-compose.yml");
+          addToComposeFile(component, null, composeFilePath);
 
-          console.log(`Running Docker Compose...`);
-          execSync("docker-compose up -d", { stdio: "inherit" });
+          console.log(`Running Docker...`);
+          execSync("docker compose up -d", { stdio: "inherit" });
 
           config.components[component] = true;
           fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
@@ -530,12 +519,15 @@ program
       console.log(`Removing Kubernetes resources for ${name}...`);
       try {
         execSync(
-          `kubectl delete -f microservices/${name}/k8s-deployment.yaml`,
+          `kubectl delete -f microservices/${name}/k8s-deployment.yaml --validate=false`,
           { stdio: "inherit" }
         );
-        execSync(`kubectl delete -f microservices/${name}/k8s-service.yaml`, {
-          stdio: "inherit",
-        });
+        execSync(
+          `kubectl delete -f microservices/${name}/k8s-service.yaml --validate=false`,
+          {
+            stdio: "inherit",
+          }
+        );
       } catch (error) {
         console.error(
           `Error removing Kubernetes resources for ${name}:`,
