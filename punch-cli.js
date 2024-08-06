@@ -201,8 +201,8 @@ const addToComposeFile = (serviceName, port, composeFilePath) => {
 
   if (!composeFileContent.includes(`  ${serviceName}:`)) {
     const serviceCompose = port
-      ? `  ${serviceName}:\n    image: ${serviceName}:latest\n    ports:\n      - "${port}:${port}"\n    environment:\n      - MONGO_URL=mongodb://mongodb:27017/${serviceName}\n    networks:\n      - mynetwork\n`
-      : `  ${serviceName}:\n    image: ${serviceName}:latest\n    networks:\n      - mynetwork\n`;
+      ? `  ${serviceName}:\n    image: ${serviceName}:latest\n    ports:\n      - "${port}:${port}"\n    environment:\n      - MONGO_URL=mongodb://mongodb:27017/${serviceName}\n      - REDIS_URL=redis://redis:6379\n      - RABBITMQ_URL=amqp://rabbitmq:5672\n    networks:\n      - mynetwork\n`
+      : `  ${serviceName}:\n    image: ${serviceName}:latest\n    environment:\n      - MONGO_URL=mongodb://mongodb:27017/${serviceName}\n      - REDIS_URL=redis://redis:6379\n      - RABBITMQ_URL=amqp://rabbitmq:5672\n    networks:\n      - mynetwork\n`;
     const updatedComposeContent = composeFileContent.replace(
       /services:/,
       `services:\n${serviceCompose}`
