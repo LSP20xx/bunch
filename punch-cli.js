@@ -62,122 +62,126 @@ const createPackageJson = async (servicePath, serviceName, author, license) => {
   await fs.writeFile(path.join(servicePath, "package.json"), packageJson);
 };
 
+const capitalizeFirstLetter = (string) => {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+};
+
 const createReduxFiles = async (servicePath, serviceName) => {
   const reduxPath = path.join(__dirname, "frontend");
   const slicesPath = path.join(reduxPath, "slices");
   const selectorsPath = path.join(reduxPath, "selectors");
+  const formattedServiceName = capitalizeFirstLetter(serviceName);
 
   const sliceContent = `
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-export const get<%= serviceName %>ById = createAsyncThunk('<%= serviceName %>/getById', async (id) => {
-  const response = await axios.get('/<%= serviceName %>/:id');
+export const get${formattedServiceName}ById = createAsyncThunk('${serviceName}/getById', async (id) => {
+  const response = await axios.get('/${serviceName}/:id');
   return response.data;
 });
 
-export const create<%= serviceName %> = createAsyncThunk('<%= serviceName %>/create', async (<%= serviceName %>Data) => {
-  const response = await axios.post('/<%= serviceName %>', <%= serviceName %>Data);
+export const create${formattedServiceName} = createAsyncThunk('${serviceName}/create', async (${serviceName}Data) => {
+  const response = await axios.post('/${serviceName}', ${serviceName}Data);
   return response.data;
 });
 
-export const update<%= serviceName %> = createAsyncThunk('<%= serviceName %>/update', async ({ id, <%= serviceName %>Data }) => {
-  const response = await axios.put('/<%= serviceName %>/:id', <%= serviceName %>Data);
+export const update${formattedServiceName} = createAsyncThunk('${serviceName}/update', async ({ id, ${serviceName}Data }) => {
+  const response = await axios.put('/${serviceName}/:id', ${serviceName}Data);
   return response.data;
 });
 
-export const delete<%= serviceName %> = createAsyncThunk('<%= serviceName %>/delete', async (id) => {
-  await axios.delete('/<%= serviceName %>/:id');
+export const delete${formattedServiceName} = createAsyncThunk('${serviceName}/delete', async (id) => {
+  await axios.delete('/${serviceName}/:id');
   return id;
 });
 
-export const list<%= serviceName %>s = createAsyncThunk('<%= serviceName %>/list', async () => {
-  const response = await axios.get('/<%= serviceName %>');
+export const list${formattedServiceName}s = createAsyncThunk('${serviceName}/list', async () => {
+  const response = await axios.get('/${serviceName}');
   return response.data;
 });
 
-const <%= serviceName %>Slice = createSlice({
-  name: '<%= serviceName %>',
+const ${serviceName}Slice = createSlice({
+  name: '${serviceName}',
   initialState: {
-    <%= serviceName %>s: [],
-    <%= serviceName %>: null,
+    ${serviceName}s: [],
+    ${serviceName}: null,
     loading: false,
     error: null,
   },
   extraReducers: (builder) => {
     builder
-      .addCase(get<%= serviceName %>ById.pending, (state) => {
+      .addCase(get${formattedServiceName}ById.pending, (state) => {
         state.loading = true;
       })
-      .addCase(get<%= serviceName %>ById.fulfilled, (state, action) => {
+      .addCase(get${formattedServiceName}ById.fulfilled, (state, action) => {
         state.loading = false;
-        state.<%= serviceName %> = action.payload;
+        state.${serviceName} = action.payload;
       })
-      .addCase(get<%= serviceName %>ById.rejected, (state, action) => {
+      .addCase(get${formattedServiceName}ById.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message;
       })
-      .addCase(create<%= serviceName %>.pending, (state) => {
+      .addCase(create${formattedServiceName}.pending, (state) => {
         state.loading = true;
       })
-      .addCase(create<%= serviceName %>.fulfilled, (state, action) => {
+      .addCase(create${formattedServiceName}.fulfilled, (state, action) => {
         state.loading = false;
-        state.<%= serviceName %>s.push(action.payload);
+        state.${serviceName}s.push(action.payload);
       })
-      .addCase(create<%= serviceName %>.rejected, (state, action) => {
+      .addCase(create${formattedServiceName}.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message;
       })
-      .addCase(update<%= serviceName %>.pending, (state) => {
+      .addCase(update${formattedServiceName}.pending, (state) => {
         state.loading = true;
       })
-      .addCase(update<%= serviceName %>.fulfilled, (state, action) => {
+      .addCase(update${formattedServiceName}.fulfilled, (state, action) => {
         state.loading = false;
-        const index = state.<%= serviceName %>s.findIndex(<%= serviceName %> => <%= serviceName %>._id === action.payload._id);
+        const index = state.${serviceName}s.findIndex(${serviceName} => ${serviceName}._id === action.payload._id);
         if (index !== -1) {
-          state.<%= serviceName %>s[index] = action.payload;
+          state.${serviceName}s[index] = action.payload;
         }
       })
-      .addCase(update<%= serviceName %>.rejected, (state, action) => {
+      .addCase(update${formattedServiceName}.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message;
       })
-      .addCase(delete<%= serviceName %>.pending, (state) => {
+      .addCase(delete${formattedServiceName}.pending, (state) => {
         state.loading = true;
       })
-      .addCase(delete<%= serviceName %>.fulfilled, (state, action) => {
+      .addCase(delete${formattedServiceName}.fulfilled, (state, action) => {
         state.loading = false;
-        state.<%= serviceName %>s = state.<%= serviceName %>s.filter(<%= serviceName %> => <%= serviceName %>._id !== action.payload);
+        state.${serviceName}s = state.${serviceName}s.filter(${serviceName} => ${serviceName}._id !== action.payload);
       })
-      .addCase(delete<%= serviceName %>.rejected, (state, action) => {
+      .addCase(delete${formattedServiceName}.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message;
       })
-      .addCase(list<%= serviceName %>s.pending, (state) => {
+      .addCase(list${formattedServiceName}s.pending, (state) => {
         state.loading = true;
       })
-      .addCase(list<%= serviceName %>s.fulfilled, (state, action) => {
+      .addCase(list${formattedServiceName}s.fulfilled, (state, action) => {
         state.loading = false;
-        state.<%= serviceName %>s = action.payload;
+        state.${serviceName}s = action.payload;
       })
-      .addCase(list<%= serviceName %>s.rejected, (state, action) => {
+      .addCase(list${formattedServiceName}s.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message;
       });
   },
 });
 
-export default <%= serviceName %>Slice.reducer;
+export default ${serviceName}Slice.reducer;
 `;
 
   const selectorContent = `
-export const select<%= serviceName %>State = (state) => state.<%= serviceName %>;
-export const selectAll<%= serviceName %>s = (state) => state.<%= serviceName %>.<%= serviceName %>s;
-export const select<%= serviceName %>ById = (state, id) => state.<%= serviceName %>.<%= serviceName %>s.find(<%= serviceName %> => <%= serviceName %>._id === id);
-export const select<%= serviceName %>Loading = (state) => state.<%= serviceName %>.loading;
-export const select<%= serviceName %>Error = (state) => state.<%= serviceName %>.error;
+export const select${formattedServiceName}State = (state) => state.${serviceName};
+export const selectAll${formattedServiceName}s = (state) => state.${serviceName}.${serviceName}s;
+export const select${formattedServiceName}ById = (state, id) => state.${serviceName}.${serviceName}s.find(${serviceName} => ${serviceName}._id === id);
+export const select${formattedServiceName}Loading = (state) => state.${serviceName}.loading;
+export const select${formattedServiceName}Error = (state) => state.${serviceName}.error;
 `;
-
   await fs.writeFile(
     path.join(slicesPath, `${serviceName}Slice.js`),
     ejs.render(sliceContent, { serviceName })
@@ -186,6 +190,48 @@ export const select<%= serviceName %>Error = (state) => state.<%= serviceName %>
     path.join(selectorsPath, `${serviceName}Selectors.js`),
     ejs.render(selectorContent, { serviceName })
   );
+
+  // Crear o actualizar store.js
+  const storePath = path.join(reduxPath, "store.js");
+  let storeContent = "";
+
+  if (fs.existsSync(storePath)) {
+    storeContent = await fs.readFile(storePath, "utf-8");
+
+    // Check if the reducer is already included
+    const importStatement = `import ${serviceName}Reducer from './slices/${serviceName}Slice';`;
+    const reducerStatement = `${serviceName}: ${serviceName}Reducer,`;
+
+    if (!storeContent.includes(importStatement)) {
+      storeContent = storeContent.replace(
+        "// Import reducers",
+        `// Import reducers\n${importStatement}`
+      );
+    }
+
+    if (!storeContent.includes(reducerStatement)) {
+      storeContent = storeContent.replace(
+        "reducer: {",
+        `reducer: {\n    ${reducerStatement}`
+      );
+    }
+  } else {
+    storeContent = `
+import { configureStore } from '@reduxjs/toolkit';
+// Import reducers
+import ${serviceName}Reducer from './slices/${serviceName}Slice';
+
+const store = configureStore({
+  reducer: {
+    ${serviceName}: ${serviceName}Reducer,
+  },
+});
+
+export default store;
+`;
+  }
+
+  await fs.writeFile(storePath, storeContent);
 };
 
 const replaceInFile = async (filePath, replacements) => {
